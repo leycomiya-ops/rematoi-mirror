@@ -25,7 +25,7 @@ jobs:
             --random-wait \
             --user-agent="Mozilla/5.0 (compatible; mirror-bot)" \
             --directory-prefix=./public \
-            https://rematoi.com/
+            https://rematoi.com/ || true
 
       - name: Cloudflare Pages にデプロイ
         uses: cloudflare/pages-action@v1
