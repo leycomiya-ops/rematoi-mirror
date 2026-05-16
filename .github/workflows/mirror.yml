@@ -1,0 +1,36 @@
+name: rematoi.com ミラー自動更新
+
+on:
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+jobs:
+  mirror-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: rematoi.com をミラーリング
+        run: |
+          wget \
+            --mirror \
+            --convert-links \
+            --adjust-extension \
+            --page-requisites \
+            --no-parent \
+            --wait=2 \
+            --random-wait \
+            --user-agent="Mozilla/5.0 (compatible; mirror-bot)" \
+            --directory-prefix=./public \
+            https://rematoi.com/
+
+      - name: Cloudflare Pages にデプロイ
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: rematoi-mirror
+          directory: ./public/rematoi.com
