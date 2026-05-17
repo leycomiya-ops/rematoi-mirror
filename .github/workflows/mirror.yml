@@ -2,12 +2,13 @@ name: rematoi.com ミラー自動更新
 
 on:
   schedule:
-    - cron: '0 18 * * *'
+    - cron: '0 18 * * *'  # JST 午前3時
   workflow_dispatch:
 
 jobs:
   mirror-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: リポジトリをチェックアウト
@@ -21,11 +22,37 @@ jobs:
             --adjust-extension \
             --page-requisites \
             --no-parent \
-            --wait=2 \
+            --span-hosts \
+            --domains=rematoi.com,www.rematoi.com \
+            --wait=1 \
             --random-wait \
-            --user-agent="Mozilla/5.0 (compatible; mirror-bot)" \
+            --tries=3 \
+            --timeout=30 \
+            --no-check-certificate \
+            --user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
             --directory-prefix=./public \
             https://rematoi.com/ || true
+
+      - name: ダウンロード結果を確認・正規化
+        run: |
+          if [ -d "./public/rematoi.com" ]; then
+            COUNT=$(find ./public/rematoi.com -type f | wc -l)
+            echo "ミラーリング成功: ${COUNT} ファイル"
+          elif [ -d "./public/www.rematoi.com" ]; then
+            COUNT=$(find ./public/www.rematoi.com -type f | wc -l)
+            echo "www サブドメインにリダイレクトを検出: ${COUNT} ファイル"
+            mv ./public/www.rematoi.com ./public/rematoi.com
+          else
+            echo "::warning::ミラーリングされたファイルが見つかりません。フォールバックページを生成します。"
+            mkdir -p ./public/rematoi.com
+            cat > ./public/rematoi.com/index.html <<'EOF'
+          <!DOCTYPE html>
+          <html lang="ja">
+          <head><meta charset="UTF-8"><title>ミラー更新中</title></head>
+          <body><p>ミラーサイトは現在更新中です。しばらくお待ちください。</p></body>
+          </html>
+          EOF
+          fi
 
       - name: Cloudflare Pages にデプロイ
         uses: cloudflare/pages-action@v1
@@ -34,3 +61,4 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           projectName: rematoi-mirror
           directory: ./public/rematoi.com
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
